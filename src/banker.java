@@ -1,0 +1,485 @@
+import java.util.*;
+
+public class banker {
+
+	public static void BANKER(ArrayList<ArrayList<String>> task_inputs)
+	{
+
+		int[] resource_units=new int[bankers.no_of_resources];
+		int tofree[]=new int [bankers.no_of_resources];
+		for(int i=0;i<resource_units.length;i++)
+		{
+			tofree[i]=0;
+			resource_units[i]=bankers.resource_units[i];	
+		}
+
+		int N=task_inputs.size();
+		int[][] resources_granted=new int [N][bankers.no_of_resources];
+
+		ArrayList<Integer> blocked=new ArrayList<Integer>();
+		int input_line[]=new int[N];
+		int delay[]=new int[N];
+		int isblocked[]=new int[N];
+		int start_time[]=new int[N];
+		int finish_time[]=new int[N];
+		int wait_time[]=new int[N];
+		int isterminated[]=new int[N];
+		int no_of_blocked_tasks=0;
+		int no_of_active_tasks=0;
+		int no_of_terminated_tasks=0;
+		int total_wait_time=0;
+		int total_time=0;
+		int initial_claim[][]=new int[N][bankers.no_of_resources];
+		int remaining_claim[][]=new int[N][bankers.no_of_resources];
+		boolean delaybit[]=new boolean[N];
+		boolean ran_this_cycle[]=new boolean[N];
+		boolean safestate=false;
+
+		//------------------------------------------------------initialization loop-------------------------------------------------------------
+		for(int i=0;i<N;i++)
+		{
+			isterminated[i]=0;
+			delay[i]=0;
+			isblocked[i]=0;
+			start_time[i]=-1;
+			finish_time[i]=-1;
+			wait_time[i]=0;
+			delaybit[i]=false;
+			ran_this_cycle[i]=false;
+		}
+
+
+		int cycle=0;
+
+
+		//----------------------------------------------------------main loop-----------------------------------------------------------------------------
+		while(no_of_terminated_tasks<N)
+		{
+
+			//System.out.println();
+			//System.out.println("-------------CYCLE "+cycle+"------------------");
+
+			//			System.out.println("respurces left "+resource_units[0]);
+
+
+
+			//--------------------------------------------------handling blocked processes-----------------------------------------------------------------------------
+			int count=0; 
+			while(!blocked.isEmpty()&&count<blocked.size())
+			{	
+				//System.out.println("showing blocked process "+(blocked.get(y)+1) );
+				int t=blocked.get(count);
+
+				String[] blocked_line_array=task_inputs.get(t).get(input_line[t]).split(" ");
+				//System.out.println("left: "+(resource_units[Integer.parseInt(blocked_line_array[3])-1])+" req: "+blocked_line_array[4]);
+
+				if(resource_units[Integer.parseInt(blocked_line_array[3])-1]>=Integer.parseInt(blocked_line_array[4]))
+				{
+
+
+					//------------------------------------------checking for safe state------------------------------------------------------------------	
+					int temp_resources[]=resource_units.clone();
+					int temp_granted[][]=resources_granted.clone();
+					int temp_terminated[]=isterminated.clone();
+					int temp_number_terminated=no_of_terminated_tasks;
+					boolean enough_left=true;
+
+					for(int j=0;j<bankers.no_of_resources;j++)
+					{
+
+						if(remaining_claim[t][j]>temp_resources[j])
+						{
+							enough_left=false;
+							safestate=false;
+						}
+					}
+
+					if(enough_left==true)
+					{
+						temp_terminated[t]=1;
+						temp_number_terminated++;
+
+						for(int j=0;j<bankers.no_of_resources;j++)
+						{
+							temp_resources[j]+=temp_granted[t][j];
+						}
+
+						for(int k=0;k<N;k++)
+						{
+							if(temp_terminated[k]==0)
+							{
+								for(int j=0;j<bankers.no_of_resources;j++)
+								{
+									if(remaining_claim[k][j]>temp_resources[j])
+									{
+										enough_left=false;
+										safestate=false;
+									}
+
+								}
+
+								if(enough_left==true)
+								{
+									temp_terminated[k]=1;
+									temp_number_terminated++;
+									
+									for(int j=0;j<bankers.no_of_resources;j++)
+									{
+										temp_resources[j]+=temp_granted[k][j];
+									}
+
+								}
+
+							}
+						}
+					}
+
+					if(temp_number_terminated==N)
+					{
+						safestate=true;
+					}
+
+
+
+
+
+
+					if(safestate==true)
+					{
+						//System.out.println("Task "+(t+1)+" completes its task "+blocked_line_array[0]);
+						isblocked[t]=0;
+						no_of_blocked_tasks--;
+
+						blocked.remove((Object)t);
+						ran_this_cycle[t]=true;
+						remaining_claim[t][Integer.parseInt(blocked_line_array[3])-1]-=Integer.parseInt(blocked_line_array[4]);
+						resource_units[Integer.parseInt(blocked_line_array[3])-1]-=Integer.parseInt(blocked_line_array[4]);
+						resources_granted[t][Integer.parseInt(blocked_line_array[3])-1]+=Integer.parseInt(blocked_line_array[4]);
+					}
+					else
+					{
+						//System.out.println("task "+(t+1)+" not granted");
+						ran_this_cycle[t]=true;
+						input_line[t]--;
+						wait_time[t]++;
+						count++;
+					}
+				}
+
+
+				else
+				{
+					//System.out.println("task still not safe, "+(t+1)+" not granted");
+					ran_this_cycle[t]=true;
+					input_line[t]--;
+					wait_time[t]++;
+					count++;
+				}
+
+			}
+
+			//--------------------------------------------------for each process per cycle--------------------------------------------------------
+			for(int i=0;i<N;i++)
+			{
+				//System.out.println("resources       "+resource_units[0]);
+				if(input_line[i]<task_inputs.get(i).size()&&isterminated[i]==0)
+				{
+					String[] line_array=task_inputs.get(i).get(input_line[i]).split(" ");
+					String[] next_line={""};
+					if(input_line[i]+1<task_inputs.get(i).size())
+					{
+						next_line=task_inputs.get(i).get(input_line[i]+1).split(" ");
+					}
+
+					//---------------------------------------------------setting delays------------------------------------------------------
+					if(delaybit[i]==false)
+					{
+						//System.out.println("inside here for "+ (i+1));
+						delay[i]=Integer.parseInt(line_array[2]);
+
+						delaybit[i]=true;
+					}
+					//System.out.println("currdelay of task "+(i+1)+" is"+delay[i]);
+					if(delay[i]==0)
+					{ 
+
+						input_line[i]++;
+						if(isblocked[i]==0)
+						{
+							delaybit[i]=false;
+						}
+						if(ran_this_cycle[i]==false)
+						{
+							delaybit[i]=false;
+							safestate=false;
+
+
+							//---------------------------------------------task initiation----------------------------------------------------
+							if(line_array[0].equals("initiate"))
+							{
+								if(Integer.parseInt(line_array[3])>bankers.no_of_resources)
+								{
+									System.out.println("error, resource doesnt exist");
+								}
+								else
+								{
+									if(Integer.parseInt(line_array[4])<=resource_units[Integer.parseInt(line_array[3])-1])
+									{
+										//System.out.println(line_array[1]+" initiated");
+										no_of_active_tasks++;
+										if(start_time[i]==-1)
+										{
+											start_time[i]=cycle;
+										}
+										initial_claim[i][Integer.parseInt(line_array[3])-1]=Integer.parseInt(line_array[4]);	
+										remaining_claim[i][Integer.parseInt(line_array[3])-1]=Integer.parseInt(line_array[4]);
+									}
+									else
+									{
+										isterminated[i]=1;
+										System.out.println("task "+i+1+"claimed more units than present, terminated");
+										no_of_terminated_tasks++;
+										//finish_time[i]=cycle;
+
+										for(int j=0;j<bankers.no_of_resources;j++)
+										{
+											tofree[j]+=resources_granted[i][j];
+										}
+									}
+
+								}
+							}
+
+
+							//-------------------------------------------handling resource requests by processes------------------------------------------------
+							if(line_array[0].equals("request"))
+							{
+
+								if(Integer.parseInt(line_array[3])<=bankers.no_of_resources)
+								{
+									if(Integer.parseInt(line_array[4])<=remaining_claim[i][Integer.parseInt(line_array[3])-1])
+									{
+										if(resource_units[Integer.parseInt(line_array[3])-1]>=Integer.parseInt(line_array[4]))
+										{	
+
+											//-------------------------------------checking for safe state-------------------------------------------------------------
+											int temp_resources[]=resource_units.clone();
+											int temp_granted[][]=resources_granted.clone();
+											int temp_terminated[]=isterminated.clone();
+											int temp_number_terminated=no_of_terminated_tasks;
+											boolean enough_left=true;
+
+											for(int j=0;j<bankers.no_of_resources;j++)
+											{
+												if(remaining_claim[i][j]>temp_resources[j])
+												{
+													enough_left=false;
+												}
+											}
+
+											if(enough_left==true)
+											{
+												temp_terminated[i]=1;
+												temp_number_terminated++;
+												for(int j=0;j<bankers.no_of_resources;j++)
+												{
+													temp_resources[j]+=temp_granted[i][j];
+												}
+
+												for(int k=0;k<N;k++)
+												{
+													if(temp_terminated[k]==0)
+													{
+														for(int j=0;j<bankers.no_of_resources;j++)
+														{
+															if(remaining_claim[k][j]>temp_resources[j])
+															{
+																enough_left=false;
+															}
+
+														}
+														if(enough_left==true)
+														{
+															temp_terminated[k]=1;
+															temp_number_terminated++;
+															for(int j=0;j<bankers.no_of_resources;j++)
+															{
+																temp_resources[j]+=temp_granted[k][j];
+															}
+
+														}
+
+													}
+												}
+											}
+
+											if(temp_number_terminated==N)
+											{
+												safestate=true;
+											}
+
+
+
+
+											if(safestate==true)
+											{
+												//System.out.println(line_array[1]+" request granted "+ Integer.parseInt(line_array[4]));
+												resource_units[Integer.parseInt(line_array[3])-1]-=Integer.parseInt(line_array[4]);
+												resources_granted[i][Integer.parseInt(line_array[3])-1]+=Integer.parseInt(line_array[4]);
+												remaining_claim[i][Integer.parseInt(line_array[3])-1]-=Integer.parseInt(line_array[4]);
+											}
+											else
+											{
+												//System.out.println(i+1+" not safe, process blocked "+Integer.parseInt(line_array[4]));
+
+												blocked.add(i);
+												no_of_blocked_tasks++;
+												wait_time[i]++;
+												isblocked[i]=1;
+												input_line[i]--;
+
+											}
+
+										}
+										else
+										{
+											//System.out.println(i+1+" not enought resources, process blocked "+Integer.parseInt(line_array[4]));
+
+											blocked.add(i);
+											no_of_blocked_tasks++;
+											wait_time[i]++;
+											isblocked[i]=1;
+											input_line[i]--;
+
+										}
+									}
+									else
+									{
+										isterminated[i]=1;
+										System.out.println(" request exceeded claim, task "+(i+1)+" aborted");
+										no_of_terminated_tasks++;
+
+
+										for(int j=0;j<bankers.no_of_resources;j++)
+										{
+											tofree[j]+=resources_granted[i][j];
+										}
+									}
+								}
+								else
+								{
+									System.out.println("invalid resource requested");
+								}
+
+							}
+
+
+							//----------------------------------------------adding resources to tofree list----------------------------------------------------------
+							if(line_array[0].equals("release"))
+							{
+								//System.out.println(line_array[1]+" successfully released " +Integer.parseInt(line_array[4]));
+								tofree[Integer.parseInt(line_array[3])-1]+=Integer.parseInt(line_array[4]);
+								resources_granted[i][Integer.parseInt(line_array[3])-1]-=Integer.parseInt(line_array[4]);
+								remaining_claim[i][Integer.parseInt(line_array[3])-1]+=Integer.parseInt(line_array[4]);
+
+							}
+
+
+							//-------------------------------------------------checking terminating tasks-----------------------------------------------------------
+							if(next_line[0].equals("terminate"))
+							{
+								if(Integer.parseInt(next_line[2])==0)
+								{
+									isterminated[i]=1;
+									//System.out.println(i+1+" terminated");
+									no_of_terminated_tasks++;
+									finish_time[i]=cycle;
+
+									for(int j=0;j<bankers.no_of_resources;j++)
+									{
+										tofree[j]+=resources_granted[i][j];
+									}
+
+								}
+							}
+
+						}
+					}
+					else
+					{
+
+						if(ran_this_cycle[i]==false)
+						{
+							delay[i]--;
+							if(line_array[0].equals("terminate")&&delay[i]==0)
+							{
+
+								isterminated[i]=1;
+								//System.out.println(i+1+" is delayed and terminated");
+								no_of_terminated_tasks++;
+								finish_time[i]=cycle;
+
+
+								for(int j=0;j<bankers.no_of_resources;j++)
+								{
+									tofree[j]+=resources_granted[i][j];
+								}
+
+
+							}
+							else
+							{
+								//System.out.println(i+1+" delayed "+(delay[i]+1));
+							}
+
+						}
+					}
+				}
+			}
+
+			//---------------------------------------------returning freed resources for next cycle----------------------------------------------------------
+			for(int i=0;i<bankers.no_of_resources;i++)
+			{
+				resource_units[i]+=tofree[i];
+				tofree[i]=0;
+			}
+
+			//----------------------------------------------------------breaking deadlock (There shouldn't ever be deadlock)-------------------------------------------------------------------------------			
+			if(no_of_blocked_tasks==no_of_active_tasks)
+			{
+				System.out.println("SHOULDNT EVER BE HERE (DEADLOCK");
+			}
+
+			no_of_active_tasks=N-no_of_terminated_tasks;
+			for(int i=0;i<N;i++)
+			{
+				ran_this_cycle[i]=false;
+			}
+
+			//System.out.println("end of cycle");
+
+			cycle++;
+		}
+
+		System.out.println(" ----------------- BANKERS ---------------------------------------           ");
+		for(int i=0;i<N;i++){	
+			if(finish_time[i]==-1)
+			{
+				System.out.println("TASK "+(i+1)+"   aborted");
+			}
+			else
+			{
+				//System.out.println("finish time "+finish_time[i]);
+				System.out.print("TASK "+(i+1)+"   "+ (finish_time[i]-start_time[i]+1)+ "   "+ (wait_time[i])+"   "+(((double)wait_time[i]/(double)(finish_time[i]-start_time[i]+1)*100))+"%");
+				System.out.println();
+				total_wait_time+=(wait_time[i]);
+				total_time+=(finish_time[i]-start_time[i]+1);
+			}
+		}
+
+		System.out.print("TOTAL "+"    "+ (total_time)+ "   "+ (total_wait_time)+"   "+(((double)total_wait_time/total_time)*100)+'%');
+	}
+
+
+
+}
